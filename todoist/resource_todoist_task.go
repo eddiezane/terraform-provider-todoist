@@ -1,17 +1,12 @@
-package main
+package todoist
 
 import (
-	"github.com/eddiezane/todoist-rest-go"
+	todoistRest "github.com/eddiezane/todoist-rest-go"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
 func resourceTodoistTask() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceTodoistTaskCreate,
-		Read:   resourceTodoistTaskRead,
-		Update: resourceTodoistTaskUpdate,
-		Delete: resourceTodoistTaskDelete,
-
 		Schema: map[string]*schema.Schema{
 			"content": &schema.Schema{
 				Type:     schema.TypeString,
@@ -23,14 +18,18 @@ func resourceTodoistTask() *schema.Resource {
 				Default:  false,
 			},
 		},
+		Create: resourceTodoistTaskCreate,
+		Read:   resourceTodoistTaskRead,
+		Update: resourceTodoistTaskUpdate,
+		Delete: resourceTodoistTaskDelete,
 	}
 }
 
-func resourceTodoistTaskCreate(d *schema.ResourceData, m interface{}) error {
-	client := m.(*todoist.Client)
+func resourceTodoistTaskCreate(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*todoistRest.Client)
 	content := d.Get("content").(string)
 
-	newTask := &todoist.NewTask{
+	newTask := &todoistRest.NewTask{
 		Content: content,
 	}
 
@@ -40,25 +39,36 @@ func resourceTodoistTaskCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.SetId(task.Id)
-	return nil
+	return resourceTodoistTaskRead(d, meta)
 }
 
-func resourceTodoistTaskRead(d *schema.ResourceData, m interface{}) error {
-	client := m.(*todoist.Client)
+func resourceTodoistTaskRead(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*todoistRest.Client)
 	id := d.Id()
+	var t todoistRest.Task
 
 	task, err := client.GetTask(id)
-	if err != nil {
-		return err
+	if err == nil {
+		t.Content = task.Content
+		t.Completed = task.Completed
+	} else {
+		completedTask, err2 := client.GetCompletedTask(id)
+		if err2 != nil {
+			return err
+		}
+
+		t.Content = completedTask.Content
+		t.Completed = true
 	}
 
-	d.Set("content", task.Content)
+	d.Set("content", t.Content)
+	d.Set("completed", t.Completed)
 
 	return nil
 }
 
-func resourceTodoistTaskUpdate(d *schema.ResourceData, m interface{}) error {
-	client := m.(*todoist.Client)
+func resourceTodoistTaskUpdate(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*todoistRest.Client)
 	id := d.Id()
 	content := d.Get("content").(string)
 
@@ -82,7 +92,7 @@ func resourceTodoistTaskUpdate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	if d.HasChange("content") {
-		t := &todoist.Task{
+		t := &todoistRest.Task{
 			Id:      id,
 			Content: content,
 		}
@@ -95,8 +105,8 @@ func resourceTodoistTaskUpdate(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func resourceTodoistTaskDelete(d *schema.ResourceData, m interface{}) error {
-	client := m.(*todoist.Client)
+func resourceTodoistTaskDelete(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*todoistRest.Client)
 	id := d.Id()
 
 	err := client.DeleteTask(id)
