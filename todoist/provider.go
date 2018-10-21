@@ -24,8 +24,8 @@ func Provider() terraform.ResourceProvider {
 }
 
 func configureFunc() func(*schema.ResourceData) (interface{}, error) {
-	return func(rd *schema.ResourceData) (interface{}, error) {
-		client := todoistRest.NewClient(rd.Get("api_key").(string))
+	return func(d *schema.ResourceData) (interface{}, error) {
+		client := todoistRest.NewClient(d.Get("api_key").(string))
 		return client, nil
 	}
 }
