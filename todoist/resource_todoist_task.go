@@ -17,6 +17,14 @@ func resourceTodoistTask() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
+			"project_id": &schema.Schema{
+				Type:     schema.TypeInt,
+				Optional: true,
+				// Hack because Todoist API doesn't let you change the project_id
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					return old == "0"
+				},
+			},
 		},
 		Create: resourceTodoistTaskCreate,
 		Read:   resourceTodoistTaskRead,
@@ -31,6 +39,10 @@ func resourceTodoistTaskCreate(d *schema.ResourceData, meta interface{}) error {
 
 	newTask := &todoistRest.NewTask{
 		Content: content,
+	}
+
+	if project_id, ok := d.GetOk("project_id"); ok {
+		newTask.ProjectId = project_id.(int)
 	}
 
 	task, err := client.CreateTask(newTask)
@@ -63,6 +75,7 @@ func resourceTodoistTaskRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.Set("content", t.Content)
 	d.Set("completed", t.Completed)
+	d.Set("project_id", t.ProjectId)
 
 	return nil
 }
@@ -71,6 +84,7 @@ func resourceTodoistTaskUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*todoistRest.Client)
 	id := d.Id()
 	content := d.Get("content").(string)
+	// project_id := d.Get("project_id").(int)
 
 	b := d.HasChange("completed")
 	if b {
@@ -101,6 +115,19 @@ func resourceTodoistTaskUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 	}
+
+	// Update project_id unsupported by API
+	// if d.HasChange("project_id") {
+	// t := &todoistRest.Task{
+	// Id:        id,
+	// Content:   content,
+	// ProjectId: project_id,
+	// }
+	// err := client.UpdateTask(t)
+	// if err != nil {
+	// return err
+	// }
+	// }
 
 	return nil
 }

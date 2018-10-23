@@ -19,6 +19,9 @@ func Provider() terraform.ResourceProvider {
 		ResourcesMap: map[string]*schema.Resource{
 			"todoist_task": resourceTodoistTask(),
 		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"todoist_project": dataSourceTodoistProject(),
+		},
 		ConfigureFunc: configureFunc(),
 	}
 }
